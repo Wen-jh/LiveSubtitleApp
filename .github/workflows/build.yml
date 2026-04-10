@@ -16,13 +16,13 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 关键：强制使用 Gradle 7.5（完全兼容所有旧项目，不会报错）
-      - name: Setup Gradle
+      # 关键：你的项目必须用 Gradle 8.2
+      - name: Setup Gradle 8.2
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: 7.5
+          gradle-version: 8.2
 
-      # 编译，不加任何乱七八糟的东西
+      # 编译
       - name: Build Debug APK
         run: gradle assembleDebug
 
