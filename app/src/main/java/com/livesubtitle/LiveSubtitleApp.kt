@@ -3,6 +3,7 @@ package com.livesubtitle
 import android.app.Activity
 import android.app.Application
 import android.content.Intent
+import android.util.Log
 
 /**
  * Application 类 - 全局状态管理
@@ -29,30 +30,28 @@ class LiveSubtitleApp : Application() {
         @Volatile
         private var _isProjectionActive: Boolean = false
 
-        var mediaProjectionResultCode: Int
-            @Volatile get() = _mediaProjectionResultCode
-
-        var mediaProjectionData: Intent?
-            @Volatile get() = _mediaProjectionData
-
-        var isProjectionActive: Boolean
-            @Volatile get() = _isProjectionActive
-
-        /**
-         * 设置 MediaProjection 数据（从 Activity 调用）
-         */
+        @Synchronized
         fun setMediaProjection(resultCode: Int, data: Intent?) {
             _mediaProjectionResultCode = resultCode
             _mediaProjectionData = data
             _isProjectionActive = resultCode == Activity.RESULT_OK && data != null
+            Log.d("LiveSubtitleApp", "MediaProjection set: active=$_isProjectionActive")
         }
 
-        /**
-         * 清除 MediaProjection 数据（从服务调用）
-         */
+        @Synchronized
         fun clearMediaProjection() {
             _mediaProjectionData = null
             _isProjectionActive = false
+            Log.d("LiveSubtitleApp", "MediaProjection cleared")
         }
+
+        val mediaProjectionResultCode: Int
+            @Synchronized get() = _mediaProjectionResultCode
+
+        val mediaProjectionData: Intent?
+            @Synchronized get() = _mediaProjectionData
+
+        val isProjectionActive: Boolean
+            @Synchronized get() = _isProjectionActive
     }
 }
