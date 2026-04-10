@@ -17,10 +17,11 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build with Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: assembleDebug
+      # 关键：自动下载 Gradle，不需要 gradlew 文件
+      - name: Run Gradle build
+        run: gradle assembleDebug
+        env:
+          GRADLE_VERSION: 8.7
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
