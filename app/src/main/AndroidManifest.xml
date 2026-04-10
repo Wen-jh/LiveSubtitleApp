@@ -2,50 +2,37 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- 音频捕获权限 -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
-    
-    <!-- 悬浮窗权限 -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    
-    <!-- 网络权限 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:allowBackup="true"
-        <!-- 替换为Android系统默认图标（无需自定义资源） -->
-        android:icon="@android:drawable/ic_btn_speak_now"
-        android:roundIcon="@android:drawable/ic_btn_speak_now"
-        android:label="@string/app_name"
+        android:icon="@android:drawable/ic_menu_info_details"
+        android:roundIcon="@android:drawable/ic_menu_info_details"
+        android:label="LiveSubtitle"
         android:supportsRtl="true"
-        <!-- 替换为系统默认主题（避免Theme.LiveSubtitle缺失报错） -->
-        android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        <!-- 临时注释缺失的网络配置（若有需要后续再添加） -->
-        <!-- android:networkSecurityConfig="@xml/network_security_config" -->
+        android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar"
         tools:targetApi="34">
 
         <activity
             android:name=".MainActivity"
-            android:exported="true"
-            <!-- 同步替换Activity主题为系统默认 -->
-            android:theme="@android:style/Theme.Material.Light.NoActionBar">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!-- 音频捕获服务 -->
         <service
             android:name=".AudioCaptureService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
 
-        <!-- 悬浮窗服务 -->
         <service
             android:name=".FloatingSubtitleService"
             android:enabled="true"
