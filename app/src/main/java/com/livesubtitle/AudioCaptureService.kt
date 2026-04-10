@@ -1,5 +1,6 @@
 package com.livesubtitle
 
+import android.app.Activity
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -135,7 +136,7 @@ class AudioCaptureService : Service() {
             val config = AudioPlaybackCaptureConfiguration.Builder(mediaProjection!!)
                 .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
                 .addMatchingUsage(AudioAttributes.USAGE_GAME)
-                .addMatchingContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .addContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .addMatchingContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
                 .build()
 
