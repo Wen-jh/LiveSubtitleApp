@@ -17,7 +17,6 @@ import android.os.Build
 import android.os.IBinder
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -31,6 +30,11 @@ class AudioCaptureService : Service() {
     @Volatile private var isRecording = false
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val projectionCallback = object : MediaProjection.Callback() {
+        override fun onStop() {
+            mainHandler.post { stopCapture() }
+        }
+    }
 
     private val sampleRate = 16000
     private val channelConfig = AudioFormat.CHANNEL_IN_MONO
@@ -120,16 +124,8 @@ class AudioCaptureService : Service() {
 
     private fun setupMediaProjection(resultCode: Int, data: Intent) {
         val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        mediaProjection = manager.getMediaProjection(resultCode, data).also { projection ->
-            projection.registerCallback(
-                object : MediaProjection.Callback() {
-                    override fun onStop() {
-                        mainHandler.post { stopCapture() }
-                    }
-                },
-                mainHandler
-            )
-        }
+        mediaProjection = manager.getMediaProjection(resultCode, data)
+        mediaProjection?.registerCallback(projectionCallback, mainHandler)
     }
 
     private fun startCapture() {
@@ -145,7 +141,6 @@ class AudioCaptureService : Service() {
             val minBufferSize = sampleRate * 2
             bufferSize = if (bufferSize < minBufferSize) minBufferSize else bufferSize
 
-            // ✅ 修复：删除了报错的 addMatchingContentType，只保留兼容的用法
             val captureConfig = AudioPlaybackCaptureConfiguration.Builder(projection)
                 .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
                 .addMatchingUsage(AudioAttributes.USAGE_GAME)
@@ -194,7 +189,7 @@ class AudioCaptureService : Service() {
         audioRecord = null
 
         mediaProjection?.apply {
-            unregisterCallback(null)
+            unregisterCallback(projectionCallback)
             stop()
         }
         mediaProjection = null
@@ -206,7 +201,7 @@ class AudioCaptureService : Service() {
         val audioChunks = mutableListOf<ByteArray>()
         var lastSendTime = System.currentTimeMillis()
 
-        while (isRecording && isActive) {
+        while (isRecording && serviceScope.isActive) {
             val bytesRead = record.read(buffer, 0, bufferSize)
             if (bytesRead <= 0) {
                 delay(10)
