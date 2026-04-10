@@ -16,18 +16,22 @@
 
     <application
         android:allowBackup="true"
-        <!-- android:icon="@mipmap/ic_launcher" -->
+        <!-- 替换为Android系统默认图标（无需自定义资源） -->
+        android:icon="@android:drawable/ic_btn_speak_now"
+        android:roundIcon="@android:drawable/ic_btn_speak_now"
         android:label="@string/app_name"
-        <!-- android:roundIcon="@mipmap/ic_launcher_round" -->
         android:supportsRtl="true"
-        android:theme="@style/Theme.LiveSubtitle"
-        android:networkSecurityConfig="@xml/network_security_config"
+        <!-- 替换为系统默认主题（避免Theme.LiveSubtitle缺失报错） -->
+        android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        <!-- 临时注释缺失的网络配置（若有需要后续再添加） -->
+        <!-- android:networkSecurityConfig="@xml/network_security_config" -->
         tools:targetApi="34">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.LiveSubtitle">
+            <!-- 同步替换Activity主题为系统默认 -->
+            android:theme="@android:style/Theme.Material.Light.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
