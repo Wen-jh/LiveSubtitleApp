@@ -10,6 +10,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
+        android:name=".LiveSubtitleApp"
         android:allowBackup="true"
         android:icon="@android:drawable/ic_menu_info_details"
         android:roundIcon="@android:drawable/ic_menu_info_details"

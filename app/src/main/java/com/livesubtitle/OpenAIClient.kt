@@ -38,12 +38,10 @@ object OpenAIClient {
     suspend fun transcribe(audioData: ByteArray, language: String = "japanese"): Result<String> {
         return withContext(Dispatchers.IO) {
             try {
-                // 转换为 WAV 格式
-                val wavData = createWavHeader(audioData.size)
-                val fullWav = wavData + audioData
-
+                // 转换为 WAV 格式（修复 WAV header）
+                val wavData = createWavFile(audioData)
                 val boundary = "----WebKitFormBoundary${System.currentTimeMillis()}"
-                val multipartBody = buildMultipartBody(fullWav, boundary, language)
+                val multipartBody = buildMultipartBody(wavData, boundary, language)
 
                 val request = Request.Builder()
                     .url(WHISPER_API_URL)
@@ -153,7 +151,7 @@ object OpenAIClient {
     /**
      * 构建 Multipart 请求体（用于 Whisper API）
      */
-    private fun buildMultipartBody(audioData: ByteArray, boundary: String, language: String): ByteArray {
+    private fun buildMultipartBody(wavData: ByteArray, boundary: String, language: String): ByteArray {
         val sb = StringBuilder()
         sb.append("--$boundary\r\n")
         sb.append("Content-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\n")
@@ -165,17 +163,24 @@ object OpenAIClient {
         val modelPart = "--$boundary\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n".toByteArray(Charsets.UTF_8)
         val endPart = "--$boundary--\r\n".toByteArray(Charsets.UTF_8)
 
-        return headerBytes + audioData + langPart + modelPart + endPart
+        return headerBytes + wavData + langPart + modelPart + endPart
     }
 
     /**
-     * 创建 WAV 文件头
+     * 创建完整的 WAV 文件（修复版）
+     * @param pcmData 原始 PCM 音频数据
+     * @return 包含正确 WAV 头的完整音频数据
      */
-    private fun createWavHeader(dataSize: Int): ByteArray {
-        val header = ByteArray(44)
+    private fun createWavFile(pcmData: ByteArray): ByteArray {
         val sampleRate = 16000
         val channels = 1
         val bitsPerSample = 16
+        val byteRate = sampleRate * channels * bitsPerSample / 8
+        val blockAlign = channels * bitsPerSample / 8
+        val dataSize = pcmData.size
+        val fileSize = dataSize + 36
+
+        val header = ByteArray(44)
 
         // RIFF header
         header[0] = 'R'.code.toByte()
@@ -183,8 +188,7 @@ object OpenAIClient {
         header[2] = 'F'.code.toByte()
         header[3] = 'F'.code.toByte()
 
-        // ChunkSize
-        val fileSize = dataSize + 36
+        // File size (little-endian)
         header[4] = (fileSize and 0xFF).toByte()
         header[5] = ((fileSize shr 8) and 0xFF).toByte()
         header[6] = ((fileSize shr 16) and 0xFF).toByte()
@@ -223,19 +227,17 @@ object OpenAIClient {
         header[27] = ((sampleRate shr 24) and 0xFF).toByte()
 
         // ByteRate
-        val byteRate = sampleRate * channels * bitsPerSample / 8
         header[28] = (byteRate and 0xFF).toByte()
         header[29] = ((byteRate shr 8) and 0xFF).toByte()
         header[30] = ((byteRate shr 16) and 0xFF).toByte()
         header[31] = ((byteRate shr 24) and 0xFF).toByte()
 
         // BlockAlign
-        val blockAlign = (channels * bitsPerSample / 8).toShort()
-        header[32] = (blockAlign.toInt() and 0xFF).toByte()
-        header[33] = ((blockAlign.toInt() shr 8) and 0xFF).toByte()
+        header[32] = (blockAlign and 0xFF).toByte()
+        header[33] = ((blockAlign shr 8) and 0xFF).toByte()
 
         // BitsPerSample
-        header[34] = bitsPerSample.toByte()
+        header[34] = (bitsPerSample and 0xFF).toByte()
         header[35] = 0
 
         // data chunk
@@ -250,7 +252,8 @@ object OpenAIClient {
         header[42] = ((dataSize shr 16) and 0xFF).toByte()
         header[43] = ((dataSize shr 24) and 0xFF).toByte()
 
-        return header
+        // 组合 header + PCM 数据
+        return header + pcmData
     }
 
     // Data classes for API responses

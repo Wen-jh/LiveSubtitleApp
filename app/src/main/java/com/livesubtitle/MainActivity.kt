@@ -28,17 +28,42 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvStatus: TextView
     private lateinit var tvDebug: TextView
 
-    private var mediaProjectionResultCode: Int = 0
-    private var mediaProjectionData: Intent? = null
-
     companion object {
         const val REQUEST_MEDIA_PROJECTION = 1001
         const val REQUEST_OVERLAY_PERMISSION = 1002
         const val REQUEST_AUDIO_PERMISSION = 1003
 
+        // 使用 @Volatile 确保多线程可见性，并移除静态存储改用 App 类
+        @Volatile
         var apiKey: String = ""
+            private set
+        @Volatile
         var sourceLanguage: String = "japanese"
+            private set
+        @Volatile
         var targetLanguage: String = "chinese"
+            private set
+
+        // 获取保存的 API Key（从 SharedPreferences）
+        fun loadApiKey(prefs: android.content.SharedPreferences): String {
+            return prefs.getString("api_key", "") ?: ""
+        }
+
+        // 获取保存的语言设置
+        fun loadSourceLanguage(prefs: android.content.SharedPreferences): Int {
+            return prefs.getInt("source_lang", 0)
+        }
+
+        fun loadTargetLanguage(prefs: android.content.SharedPreferences): Int {
+            return prefs.getInt("target_lang", 0)
+        }
+
+        // 批量更新设置（线程安全）
+        fun updateSettings(apiKey: String, sourceLang: String, targetLang: String) {
+            this.apiKey = apiKey
+            this.sourceLanguage = sourceLang
+            this.targetLanguage = targetLang
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,9 +106,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadSavedSettings() {
         val prefs = getSharedPreferences("LiveSubtitlePrefs", MODE_PRIVATE)
-        etApiKey.setText(prefs.getString("api_key", ""))
-        spinnerSourceLang.setSelection(prefs.getInt("source_lang", 0))
-        spinnerTargetLang.setSelection(prefs.getInt("target_lang", 0))
+        etApiKey.setText(loadApiKey(prefs))
+        spinnerSourceLang.setSelection(loadSourceLanguage(prefs))
+        spinnerTargetLang.setSelection(loadTargetLanguage(prefs))
     }
 
     private fun saveSettings() {
@@ -98,15 +123,16 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupClickListeners() {
         btnStart.setOnClickListener {
-            if (etApiKey.text.toString().isBlank()) {
+            val apiKeyInput = etApiKey.text.toString().trim()
+            if (apiKeyInput.isBlank()) {
                 Toast.makeText(this, "请输入 API Key", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
             saveSettings()
-            apiKey = etApiKey.text.toString()
-            sourceLanguage = getLanguageCode(spinnerSourceLang.selectedItemPosition, true)
-            targetLanguage = getLanguageCode(spinnerTargetLang.selectedItemPosition, false)
+            val srcLang = getLanguageCode(spinnerSourceLang.selectedItemPosition, true)
+            val tgtLang = getLanguageCode(spinnerTargetLang.selectedItemPosition, false)
+            updateSettings(apiKeyInput, srcLang, tgtLang)
 
             checkPermissionsAndStart()
         }
@@ -176,8 +202,8 @@ class MainActivity : AppCompatActivity() {
         when (requestCode) {
             REQUEST_MEDIA_PROJECTION -> {
                 if (resultCode == RESULT_OK && data != null) {
-                    mediaProjectionResultCode = resultCode
-                    mediaProjectionData = data
+                    // 使用 Application 类安全存储 MediaProjection 数据
+                    LiveSubtitleApp.setMediaProjection(resultCode, data)
                     startServices()
                 } else {
                     tvStatus.text = "状态: 需要授权屏幕录制"
@@ -209,21 +235,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startServices() {
-        // 启动悬浮窗服务
-        val floatingIntent = Intent(this, FloatingSubtitleService::class.java)
-        startService(floatingIntent)
-
-        // 启动音频捕获服务
-        val audioIntent = Intent(this, AudioCaptureService::class.java).apply {
-            putExtra("resultCode", mediaProjectionResultCode)
-            putExtra("data", mediaProjectionData)
+        // 检查 MediaProjection 数据是否有效
+        if (!LiveSubtitleApp.isProjectionActive) {
+            tvStatus.text = "状态: MediaProjection 授权失败"
+            return
         }
-        
+
+        // 启动音频捕获服务（通过 Application 类获取 MediaProjection 数据）
+        val audioIntent = Intent(this, AudioCaptureService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForegroundService(audioIntent)
         } else {
             startService(audioIntent)
         }
+
+        // 启动悬浮窗服务
+        val floatingIntent = Intent(this, FloatingSubtitleService::class.java)
+        startService(floatingIntent)
 
         btnStart.isEnabled = false
         btnStop.isEnabled = true
